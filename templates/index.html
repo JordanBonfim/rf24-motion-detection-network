@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento 3000</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .status-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px; margin-bottom: 20px; }
+        .status-indicator { width: 50px; height: 50px; background-color: gray; border-radius: 50%; margin: 20px auto; transition: background-color 0.3s; }
+        .detectado { background-color: #ff4d4d; box-shadow: 0 0 20px #ff4d4d; }
+        .history-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        ul { list-style-type: none; padding: 0; max-height: 300px; overflow-y: auto; }
+        li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        .timestamp { color: #888; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="status-card">
+        <h2 style="margin: 0; color: #333;">Status do Sensor</h2>
+        <div id="indicador" class="status-indicator"></div>
+        <p id="status-text">Aguardando movimento...</p>
+    </div>
+
+    <div class="history-card">
+        <h2 style="margin: 0 0 10px 0; color: #333;">Histórico de Detecções</h2>
+        <ul id="historico"></ul>
+    </div>
+
+    <script>
+        const socket = io();
+        let timeoutId;
+        const indicador = document.getElementById('indicador');
+        const statusText = document.getElementById('status-text');
+        const historico = document.getElementById('historico');
+
+        socket.on('motion_detected', function(dados) {
+            indicador.classList.add('detectado');
+            statusText.innerText = "Movimento Detectado!";
+            
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                indicador.classList.remove('detectado');
+                statusText.innerText = "Aguardando movimento";
+            }, 5000);
+
+            const novoItem = document.createElement('li');
+            novoItem.innerHTML = `<span><strong>Sinal:</strong> ${dados.mensagem}</span> <span class="timestamp">${dados.timestamp}</span>`;
+            historico.prepend(novoItem);
+        });
+    </script>
+</body>
+</html>
