@@ -222,9 +222,24 @@ bool send_packet(int target_id, int data_value) {
   sent_packet.data = data_value;
 
   // --- 1. ENVIAR RTS ---
-  radio.stopListening();
-  radio.flush_tx();
-  if (!radio.write(&sent_packet, sizeof(struct packet))) return false;
+  timeout = millis();
+
+  while(1){
+      
+    if (millis() - timeout > 250) return false;
+
+    radio.startListening();
+    delayMicroseconds(70);
+    radio.stopListening();
+    if (!radio.testCarrier()) {
+      radio.flush_tx();
+      if (!radio.write(&sent_packet, sizeof(struct packet))) return false;
+      break;
+    }else{
+      delayMicroseconds(random(10, 30));
+    }
+    
+  }
 
   // --- 2. AGUARDAR CTS ---
   radio.startListening();
@@ -232,7 +247,7 @@ bool send_packet(int target_id, int data_value) {
 
   timeout = millis();
   while (1) {
-    if (millis() - timeout > 400) {
+    if (millis() - timeout > 250) {
       radio.flush_rx();
       return false;
     }
@@ -250,10 +265,26 @@ bool send_packet(int target_id, int data_value) {
 
   // --- 3. ENVIAR DATA ---
   sent_packet.type = DATA;
-  radio.stopListening();
-  delay(10);
-  radio.flush_tx();
-  if (!radio.write(&sent_packet, sizeof(struct packet))) return false;
+  
+  timeout = millis();
+  while(1){
+    if (millis() - timeout > 250) return false;
+    radio.startListening();
+    delayMicroseconds(70);
+    radio.stopListening();
+    if (!radio.testCarrier()) {
+      radio.flush_tx();
+      if (!radio.write(&sent_packet, sizeof(struct packet))) return false;
+      break;
+    }else{
+      #ifdef DEBUG
+        Serial.println("Meio Ocupado");
+      #endif
+      delayMicroseconds(random(10, 30));
+    }
+  }
+
+  
 
   // --- 4. AGUARDAR ACK ---
   radio.startListening();
@@ -303,7 +334,23 @@ bool await_packet() {
       delay(15);
 
       radio.flush_tx();
-      radio.write(&sent_packet, sizeof(struct packet));
+      timeout = millis();
+      while(1){
+        if (millis() - timeout > 250) return false;
+        radio.startListening();
+        delayMicroseconds(70);
+        radio.stopListening();
+        if (!radio.testCarrier()) {
+          radio.flush_tx();
+          radio.write(&sent_packet, sizeof(struct packet));
+          break;
+        }else{
+          #ifdef DEBUG
+              Serial.println("Meio Ocupado");
+          #endif
+          delayMicroseconds(random(10, 30));
+        }
+      }
 
 #ifdef DEBUG
       Serial.println(F("CTS enviado!"));
@@ -334,7 +381,24 @@ bool await_packet() {
         radio.stopListening();
         delay(15);
         radio.flush_tx();
-        radio.write(&sent_packet, sizeof(struct packet));
+  
+        timeout = millis();
+        while(1){
+          if (millis() - timeout > 250) return false;
+          radio.startListening();
+          delayMicroseconds(70);
+          radio.stopListening();
+          if (!radio.testCarrier()) {
+            radio.flush_tx();
+            radio.write(&sent_packet, sizeof(struct packet));
+            break;
+          }else{
+            #ifdef DEBUG
+              Serial.println("Meio Ocupado");
+            #endif
+            delayMicroseconds(random(10, 30));
+          }
+        }
         return true;
       }
     }
@@ -412,7 +476,7 @@ void setup() {
     while (1) {}
   }
 
-  radio.setPALevel(RF24_PA_MAX);
+  radio.setPALevel(RF24_PA_LOW);
   radio.setChannel(100);
   radio.setPayloadSize(sizeof(struct packet));
   radio.setAutoAck(false);
@@ -428,9 +492,10 @@ void setup() {
 
 
   //      ATENÇÃO
-  // USO PINOS PARA O SENSOR
+  // USO DOS PINOS PARA O SENSOR
   pinMode(led_PIN, OUTPUT);
   pinMode(sensor_PIN, INPUT);
+  // USO DO PINO PARA O BUZZER DO SERVIDOR
   pinMode(BUZZER_PIN, INPUT);
 }
 
