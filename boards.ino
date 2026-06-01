@@ -212,6 +212,32 @@ void playMario() {
 }
 
 
+bool try_to_send() {
+  unsigned long timeout = millis();
+  while(1){
+    if (millis() - timeout > 250) return false;
+    radio.startListening();
+    delayMicroseconds(70);
+    radio.stopListening();
+    if (!radio.testCarrier()) {
+      radio.flush_tx();
+      if (!radio.write(&sent_packet, sizeof(struct packet))){
+        #ifdef DEBUG
+          Serial.println("Falha ao enviar. Retentando");
+        #endif
+        delayMicroseconds(random(10, 30));
+        continue;;
+      }
+      return true;
+      
+    }else{
+      #ifdef DEBUG
+        Serial.println("Meio Ocupado");
+      #endif
+      delayMicroseconds(random(10, 30));
+    }
+  }
+}
 
 bool send_packet(int target_id, int data_value) {
   unsigned long timeout;
@@ -221,26 +247,11 @@ bool send_packet(int target_id, int data_value) {
   sent_packet.destination_ID = target_id;
   sent_packet.data = data_value;
 
+
   // --- 1. ENVIAR RTS ---
-  timeout = millis();
+  if(!try_to_send()) return false;
 
-  while(1){
-      
-    if (millis() - timeout > 250) return false;
-
-    radio.startListening();
-    delayMicroseconds(70);
-    radio.stopListening();
-    if (!radio.testCarrier()) {
-      radio.flush_tx();
-      if (!radio.write(&sent_packet, sizeof(struct packet))) return false;
-      break;
-    }else{
-      delayMicroseconds(random(10, 30));
-    }
-    
-  }
-
+  
   // --- 2. AGUARDAR CTS ---
   radio.startListening();
   radio.flush_rx();
@@ -266,23 +277,7 @@ bool send_packet(int target_id, int data_value) {
   // --- 3. ENVIAR DATA ---
   sent_packet.type = DATA;
   
-  timeout = millis();
-  while(1){
-    if (millis() - timeout > 250) return false;
-    radio.startListening();
-    delayMicroseconds(70);
-    radio.stopListening();
-    if (!radio.testCarrier()) {
-      radio.flush_tx();
-      if (!radio.write(&sent_packet, sizeof(struct packet))) return false;
-      break;
-    }else{
-      #ifdef DEBUG
-        Serial.println("Meio Ocupado");
-      #endif
-      delayMicroseconds(random(10, 30));
-    }
-  }
+  if(!try_to_send()) return false;
 
   
 
@@ -334,23 +329,7 @@ bool await_packet() {
       delay(15);
 
       radio.flush_tx();
-      timeout = millis();
-      while(1){
-        if (millis() - timeout > 250) return false;
-        radio.startListening();
-        delayMicroseconds(70);
-        radio.stopListening();
-        if (!radio.testCarrier()) {
-          radio.flush_tx();
-          radio.write(&sent_packet, sizeof(struct packet));
-          break;
-        }else{
-          #ifdef DEBUG
-              Serial.println("Meio Ocupado");
-          #endif
-          delayMicroseconds(random(10, 30));
-        }
-      }
+      if(!try_to_send()) return false;
 
 #ifdef DEBUG
       Serial.println(F("CTS enviado!"));
@@ -379,26 +358,8 @@ bool await_packet() {
         sent_packet.destination_ID = received_packet.source_ID;
 
         radio.stopListening();
-        delay(15);
-        radio.flush_tx();
-  
-        timeout = millis();
-        while(1){
-          if (millis() - timeout > 250) return false;
-          radio.startListening();
-          delayMicroseconds(70);
-          radio.stopListening();
-          if (!radio.testCarrier()) {
-            radio.flush_tx();
-            radio.write(&sent_packet, sizeof(struct packet));
-            break;
-          }else{
-            #ifdef DEBUG
-              Serial.println("Meio Ocupado");
-            #endif
-            delayMicroseconds(random(10, 30));
-          }
-        }
+        delay(15);  
+        if(!try_to_send()) return false;
         return true;
       }
     }
