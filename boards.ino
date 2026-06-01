@@ -371,7 +371,7 @@ bool await_packet() {
 void loop_sensor() {
 
   leitura = digitalRead(sensor_PIN);  //leitura do sensor de presença
-
+  unsigned long led_timer = millis();
   if (leitura == HIGH) {  // movimento  detectado
     digitalWrite(led_PIN, HIGH);
     if (estadoSensor == false) {
@@ -382,9 +382,14 @@ void loop_sensor() {
         Serial.println(F("Sensor: Transação concluída! Dados entregues."));
         unsigned long timeout = millis();
         while(millis() - timeout < 15000){
+          if(millis() - led_timer > 500){
+            digitalWrite(led_PIN, !digitalRead(led_PIN));
+            led_timer = millis();
+          }
           if (await_packet()) {
             if (received_packet.source_ID == GATEWAY_ID && received_packet.destination_ID == ID) {
               Serial.println(F("Sinal recebido do Gateway. Aguardando próximo movimento..."));
+              digitalWrite(led_PIN, LOW);
               break;
             }
           }
