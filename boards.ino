@@ -172,7 +172,6 @@ RF24 radio(CE_PIN, CSN_PIN);
 #define SENSOR_ID 44
 
 #define DEBUG
-
 uint64_t address[2] = { 0x3030303030LL, 0x3030303030LL };
 
 enum packet_type {
@@ -226,7 +225,7 @@ bool try_to_send() {
           Serial.println("Falha ao enviar. Retentando");
         #endif
         delayMicroseconds(random(10, 30));
-        continue;;
+        continue;
       }
       return true;
       
@@ -381,11 +380,21 @@ void loop_sensor() {
       Serial.println(F("Sensor: Transmitindo RTS..."));
       if (send_packet(GATEWAY_ID, digitalRead(sensor_PIN))) {
         Serial.println(F("Sensor: Transação concluída! Dados entregues."));
+        unsigned long timeout = millis();
+        while(millis() - timeout < 15000){
+          if (await_packet()) {
+            if (received_packet.source_ID == GATEWAY_ID && received_packet.destination_ID == ID) {
+              Serial.println(F("Sinal recebido do Gateway. Aguardando próximo movimento..."));
+              break;
+            }
+          }
+        }
+
       } else {
         Serial.println(F("Sensor: Erro (CTS não veio ou ACK falhou)."));
       }
     }
-    delay(5000);
+
 
   } else {  // sem movimento
     if (estadoSensor == true) {
@@ -398,23 +407,35 @@ void loop_sensor() {
 
 void loop_gateway() {
   if (await_packet()) {
-    if (received_packet.source_ID == SENSOR_ID) {
-      Serial.println(F("Gateway: Pacote recebido do Sensor."));
+    if (received_packet.source_ID == SENSOR_ID || received_packet.source_ID == SERVER_ID) {
+      Serial.println(F("Gateway: Pacote recebido do: "));
+      Serial.print(received_packet.source_ID);
       int valor = received_packet.data;
 
-      Serial.println(F("Gateway: Repassando para o Servidor..."));
-      if (send_packet(SERVER_ID, valor)) {
-        Serial.println(F("Gateway: Servidor respondeu ao repasse."));
-      } else {
-        Serial.println(F("Gateway: Servidor não respondeu."));
+      Serial.println(F("Gateway: Repassando o pacote..."));
+
+      if(received_packet.source_ID == SENSOR_ID){
+        if (send_packet(SERVER_ID, valor)) {
+          Serial.println(F("Gateway: Servidor respondeu ao repasse."));
+        } else {
+          Serial.println(F("Gateway: Servidor não respondeu."));
+        }
+      }
+      if(received_packet.source_ID == SERVER_ID){
+        if (send_packet(SENSOR_ID, valor)) {
+          Serial.println(F("Gateway: Sensor respondeu ao repasse."));
+        } else {
+          Serial.println(F("Gateway: Sensor não respondeu."));
+        }
       }
     }
   }
 }
 
 void loop_server() {
+
   if (await_packet()) {
-    if (received_packet.source_ID == GATEWAY_ID) {
+    if (received_packet.source_ID == GATEWAY_ID && received_packet.destination_ID == ID) {
       // Envia para o servidor python escutando Serial
       Serial.println("1");
 
@@ -423,6 +444,23 @@ void loop_server() {
       // ou
       // playDoom();
       // playDoom();
+
+      unsigned long timeout = millis();
+      while(1){
+        if(millis() - timeout > 15000){
+          send_packet(GATEWAY_ID, 0); 
+          #ifdef DEBUG
+            Serial.println("Erro: Timeout do Python. Nenhum dado para enviar ao Gateway.");
+          #endif
+          break;
+        }
+
+        // Aguarda o servidor python responder a mensagem para continuar
+        if (Serial.available() > 0) {
+          send_packet(GATEWAY_ID, Serial.read());
+          break;
+        } 
+      }
     }
   }
 }
@@ -431,6 +469,9 @@ void setup() {
   Serial.begin(115200);
   Serial.print(F("Iniciando Nó ID: "));
   Serial.println(ID);
+
+  randomSeed(micros());
+
 
   if (!radio.begin()) {
     Serial.println(F("ERRO: Hardware NRF24L01 ausente"));
@@ -457,7 +498,7 @@ void setup() {
   pinMode(led_PIN, OUTPUT);
   pinMode(sensor_PIN, INPUT);
   // USO DO PINO PARA O BUZZER DO SERVIDOR
-  pinMode(BUZZER_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
 }
 
 void loop() {
