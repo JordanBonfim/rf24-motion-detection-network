@@ -6,11 +6,63 @@
     <title>Monitoramento 3000</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .status-card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px; margin-bottom: 20px; }
-        .status-indicator { width: 50px; height: 50px; background-color: gray; border-radius: 50%; margin: 20px auto; transition: background-color 0.3s; }
-        .detectado { background-color: #ff4d4d; box-shadow: 0 0 20px #ff4d4d; }
-        .history-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #0a0a0a; 
+            color: #ffffff; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+            margin: 0;
+        }
+        .status-card, .history-card { 
+            background: #1a1a1a; 
+            padding: 30px; 
+            border-radius: 8px; 
+            border: 1px solid #333;
+            text-align: center; 
+            width: 100%; 
+            max-width: 400px; 
+            margin-bottom: 20px; 
+        }
+        .history-card {
+            max-width: 600px;
+        }
+        h2 { color: #ffffff; }
+        .status-indicator { 
+            width: 50px; 
+            height: 50px; 
+            background-color: #333; 
+            border-radius: 50%; 
+            margin: 20px auto; 
+            transition: all 0.3s ease; 
+        }
+        .detectado { 
+            background-color: #ff0000; 
+            box-shadow: 0 0 25px #ff0000; 
+        }
+        .action-btn {
+            background-color: transparent;
+            color: #ff0000;
+            border: 2px solid #ff0000;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+            width: 100%;
+            display: none; 
+        }
+        .action-btn:hover {
+            background-color: #ff0000;
+            color: #ffffff;
+        }
+        .action-btn:active {
+            transform: scale(0.98);
+        }
         ul { list-style-type: none; padding: 0; max-height: 300px; overflow-y: auto; }
         li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
         .timestamp { color: #888; font-size: 0.9em; }
